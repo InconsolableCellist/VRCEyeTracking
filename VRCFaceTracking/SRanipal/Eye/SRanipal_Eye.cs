@@ -9,10 +9,10 @@ namespace ViveSR
     {
         namespace Eye
         {
-            public static class SRanipal_Eye_v2
+            public static class SRanipal_Eye
             {
-                public const int ANIPAL_TYPE_EYE_V2 = 2;
-                public delegate void CallbackBasic(ref EyeData_v2 data);
+                public const int ANIPAL_TYPE_EYE = 0;
+                public delegate void CallbackBasic(ref EyeData data);
 
                 /// <summary>
                 /// Register a callback function to receive eye camera related data when the module has new outputs.
@@ -21,7 +21,7 @@ namespace ViveSR
                 /// <returns>error code. please refer Error in ViveSR_Enums.h.</returns>
                 public static int WrapperRegisterEyeDataCallback(System.IntPtr callback)
                 {
-                    return SRanipal_Eye_API.RegisterEyeDataCallback_v2(callback);
+                    return SRanipal_Eye_API.RegisterEyeDataCallback(callback);
                 }
 
                 /// <summary>
@@ -31,29 +31,25 @@ namespace ViveSR
                 /// <returns>error code. please refer Error in ViveSR_Enums.h.</returns>
                 public static int WrapperUnRegisterEyeDataCallback(System.IntPtr callback)
                 {
-                    return SRanipal_Eye_API.UnregisterEyeDataCallback_v2(callback);
+                    return SRanipal_Eye_API.UnregisterEyeDataCallback(callback);
                 }
 
-                public const int WeightingCount = (int)EyeShape_v2.Max;
-                private static EyeData_v2 EyeData_ = new EyeData_v2();
+                public const int WeightingCount = (int)EyeShape.Max;
+                private static EyeData EyeData_ = new EyeData();
                 private static int LastUpdateFrame = -1;
                 private static Error LastUpdateResult = Error.FAILED;
-                private static Dictionary<EyeShape_v2, float> Weightings;
+                private static Dictionary<EyeShape, float> Weightings;
 
-                static SRanipal_Eye_v2()
+                static SRanipal_Eye()
                 {
-                    Weightings = new Dictionary<EyeShape_v2, float>();
-                    for (int i = 0; i < WeightingCount; ++i) Weightings.Add((EyeShape_v2)i, 0.0f);
+                    Weightings = new Dictionary<EyeShape, float>();
+                    for (int i = 0; i < WeightingCount; ++i) Weightings.Add((EyeShape)i, 0.0f);
                 }
                 private static bool UpdateData()
                 {
                     if (Time.frameCount == LastUpdateFrame) return LastUpdateResult == Error.WORK;
                     else LastUpdateFrame = Time.frameCount;
-                    LastUpdateResult = SRanipal_Eye_API.GetEyeData_v2(ref EyeData_);
-
-                    //Debug.Log("[EYE V2] LeftWide = " + EyeData_.verbose_data.left.eye_wide);
-                    //Debug.Log("[EYE V2] RightWide = " + EyeData_.verbose_data.right.eye_wide);
-
+                    LastUpdateResult = SRanipal_Eye_API.GetEyeData(ref EyeData_);
                     return LastUpdateResult == Error.WORK;
                 }
 
@@ -61,9 +57,9 @@ namespace ViveSR
                 /// Gets the VerboseData of anipal's Eye module when enable eye callback function.
                 /// </summary>
                 /// <param name="data">ViveSR.anipal.Eye.VerboseData</param>
-                /// <param name="data">ViveSR.anipal.Eye.EyeData_v2</param>
+                /// <param name="data">ViveSR.anipal.Eye.EyeData</param>
                 /// <returns>Indicates whether the data received is new.</returns>
-                public static bool GetVerboseData(out VerboseData data, EyeData_v2 eye_data)
+                public static bool GetVerboseData(out VerboseData data, EyeData eye_data)
                 {
                     data = eye_data.verbose_data;
                     return true;
@@ -85,14 +81,15 @@ namespace ViveSR
                 /// </summary>
                 /// <param name="eye">The index of an eye.</param>
                 /// <param name="openness">The openness value of an eye, clamped between 0 (fully closed) and 1 (fully open). </param>
-                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData_v2. </param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
                 /// <returns>Indicates whether the openness value received is valid.</returns>
-                public static bool GetEyeOpenness(EyeIndex eye, out float openness, EyeData_v2 eye_data)
+                public static bool GetEyeOpenness(EyeIndex eye, out float openness,EyeData eye_data)
                 {
+					bool valid = true;
                     if (SRanipal_Eye_Framework.Status == SRanipal_Eye_Framework.FrameworkStatus.WORKING)
                     {
                         SingleEyeData eyeData = eye == EyeIndex.LEFT ? eye_data.verbose_data.left : eye_data.verbose_data.right;
-                        bool valid = eyeData.GetValidity(SingleEyeDataValidity.SINGLE_EYE_DATA_EYE_OPENNESS_VALIDITY);
+                        valid = eyeData.GetValidity(SingleEyeDataValidity.SINGLE_EYE_DATA_EYE_OPENNESS_VALIDITY);
                         openness = valid ? eyeData.eye_openness : 0;
                     }
                     else
@@ -100,8 +97,8 @@ namespace ViveSR
                         // If not support eye tracking, set default to open.
                         openness = 1;
                     }
-                    return true;
-                }
+                    return valid;
+                }                
 
                 /// <summary>
                 /// Gets the openness value of an eye.
@@ -119,11 +116,10 @@ namespace ViveSR
                 /// Gets weighting values from anipal's Eye module when enable eye callback function.
                 /// </summary>
                 /// <param name="shapes">Weighting values obtained from anipal's Eye module.</param>
-                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData_v2. </param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
                 /// <returns>Indicates whether the values received are new.</returns>\
                 /// 
-                public static bool GetEyeWeightings(out Dictionary<EyeShape_v2, float> shapes, EyeData_v2 eye_data)
-                {
+                public static bool GetEyeWeightings(out Dictionary<EyeShape, float> shapes, EyeData eye_data) {
                     float[] openness = new float[2];
                     bool[] valid = new bool[2];
                     Vector2[] pupilPosition = new Vector2[2];
@@ -143,17 +139,12 @@ namespace ViveSR
                     weighting_left[(int)GazeIndex.COMBINE] = (weighting_left[(int)GazeIndex.LEFT] + weighting_left[(int)GazeIndex.RIGHT]) / 2;
                     weighting_right[(int)GazeIndex.COMBINE] = (weighting_right[(int)GazeIndex.LEFT] + weighting_right[(int)GazeIndex.RIGHT]) / 2;
 
-                    foreach (EyeShape_v2 index in (EyeShape_v2[])Enum.GetValues(typeof(EyeShape_v2)))
+                    foreach (EyeShape index in (EyeShape[])Enum.GetValues(typeof(EyeShape)))
                     {
                         Weightings[index] = 0;
                     }
-                    Weightings[EyeShape_v2.Eye_Left_Blink] = 1 - openness[(int)EyeIndex.LEFT];
-                    Weightings[EyeShape_v2.Eye_Right_Blink] = 1 - openness[(int)EyeIndex.RIGHT];
-                    Weightings[EyeShape_v2.Eye_Left_Wide] = EyeData_.expression_data.left.eye_wide;
-                    Weightings[EyeShape_v2.Eye_Right_Wide] = EyeData_.expression_data.right.eye_wide;
-
-                    Weightings[EyeShape_v2.Eye_Left_Squeeze] =  EyeData_.expression_data.left.eye_squeeze;
-                    Weightings[EyeShape_v2.Eye_Right_Squeeze] = EyeData_.expression_data.right.eye_squeeze;
+                    Weightings[EyeShape.Eye_Left_Blink] = 1 - openness[(int)EyeIndex.LEFT];
+                    Weightings[EyeShape.Eye_Right_Blink] = 1 - openness[(int)EyeIndex.RIGHT];
 
                     if (valid[(int)EyeIndex.LEFT] && valid[(int)EyeIndex.RIGHT])
                     {
@@ -165,15 +156,17 @@ namespace ViveSR
                         Vector3 gaze_axis_z = Vector3.forward;
                         float y_weight = Mathf.Acos(Vector3.Dot(gaze_direction_normalized, gaze_axis_z));
 
-                        Weightings[EyeShape_v2.Eye_Left_Up] = EyeData_.expression_data.left.eye_wide;
-                        Weightings[EyeShape_v2.Eye_Left_Down] = gaze_direction_normalized.y < 0 ? y_weight : 0;
-                        Weightings[EyeShape_v2.Eye_Left_Left] = weighting_left[(int)GazeIndex.COMBINE];
-                        Weightings[EyeShape_v2.Eye_Left_Right] = weighting_right[(int)GazeIndex.COMBINE];
+                        Weightings[EyeShape.Eye_Left_Up] = gaze_direction_normalized.y < 0 ? 0 : y_weight;
+                        Weightings[EyeShape.Eye_Left_Down] = gaze_direction_normalized.y < 0 ? y_weight : 0;
+                        Weightings[EyeShape.Eye_Left_Left] = weighting_left[(int)GazeIndex.COMBINE];
+                        Weightings[EyeShape.Eye_Left_Right] = weighting_right[(int)GazeIndex.COMBINE];
+                        Weightings[EyeShape.Eye_Left_Wide] = Weightings[EyeShape.Eye_Left_Up];
 
-                        Weightings[EyeShape_v2.Eye_Right_Up] = EyeData_.expression_data.right.eye_wide;
-                        Weightings[EyeShape_v2.Eye_Right_Down] = gaze_direction_normalized.y < 0 ? y_weight : 0;
-                        Weightings[EyeShape_v2.Eye_Right_Left] = weighting_left[(int)GazeIndex.COMBINE];
-                        Weightings[EyeShape_v2.Eye_Right_Right] = weighting_right[(int)GazeIndex.COMBINE];
+                        Weightings[EyeShape.Eye_Right_Up] = gaze_direction_normalized.y < 0 ? 0 : y_weight;
+                        Weightings[EyeShape.Eye_Right_Down] = gaze_direction_normalized.y < 0 ? y_weight : 0;
+                        Weightings[EyeShape.Eye_Right_Left] = weighting_left[(int)GazeIndex.COMBINE];
+                        Weightings[EyeShape.Eye_Right_Right] = weighting_right[(int)GazeIndex.COMBINE];
+                        Weightings[EyeShape.Eye_Right_Wide] = Weightings[EyeShape.Eye_Right_Up];
                     }
                     else if (valid[(int)EyeIndex.LEFT])
                     {
@@ -185,10 +178,11 @@ namespace ViveSR
                         Vector3 gaze_axis_z = Vector3.forward;
                         float y_weight = Mathf.Acos(Vector3.Dot(gaze_direction_normalized, gaze_axis_z));
 
-                        Weightings[EyeShape_v2.Eye_Left_Up] = EyeData_.expression_data.left.eye_wide;
-                        Weightings[EyeShape_v2.Eye_Left_Down] = gaze_direction_normalized.y < 0 ? y_weight : 0;
-                        Weightings[EyeShape_v2.Eye_Left_Left] = weighting_left[(int)GazeIndex.LEFT];
-                        Weightings[EyeShape_v2.Eye_Left_Right] = weighting_right[(int)GazeIndex.LEFT];
+                        Weightings[EyeShape.Eye_Left_Up] = gaze_direction_normalized.y < 0 ? 0 : y_weight;
+                        Weightings[EyeShape.Eye_Left_Down] = gaze_direction_normalized.y < 0 ? y_weight : 0;
+                        Weightings[EyeShape.Eye_Left_Left] = weighting_left[(int)GazeIndex.LEFT];
+                        Weightings[EyeShape.Eye_Left_Right] = weighting_right[(int)GazeIndex.LEFT];
+                        Weightings[EyeShape.Eye_Left_Wide] = Weightings[EyeShape.Eye_Left_Up];
                     }
                     else if (valid[(int)EyeIndex.RIGHT])
                     {
@@ -200,22 +194,24 @@ namespace ViveSR
                         Vector3 gaze_axis_z = Vector3.forward;
                         float y_weight = Mathf.Acos(Vector3.Dot(gaze_direction_normalized, gaze_axis_z));
 
-                        Weightings[EyeShape_v2.Eye_Right_Up] = EyeData_.expression_data.right.eye_wide;
-                        Weightings[EyeShape_v2.Eye_Right_Down] = gaze_direction_normalized.y < 0 ? y_weight : 0;
-                        Weightings[EyeShape_v2.Eye_Right_Left] = weighting_left[(int)GazeIndex.RIGHT];
-                        Weightings[EyeShape_v2.Eye_Right_Right] = weighting_right[(int)GazeIndex.RIGHT];
+                        Weightings[EyeShape.Eye_Right_Up] = gaze_direction_normalized.y < 0 ? 0 : y_weight;
+                        Weightings[EyeShape.Eye_Right_Down] = gaze_direction_normalized.y < 0 ? y_weight : 0;
+                        Weightings[EyeShape.Eye_Right_Left] = weighting_left[(int)GazeIndex.RIGHT];
+                        Weightings[EyeShape.Eye_Right_Right] = weighting_right[(int)GazeIndex.RIGHT];
+                        Weightings[EyeShape.Eye_Right_Wide] = Weightings[EyeShape.Eye_Right_Up];
                     }
                     shapes = Weightings;
                     return true;
 
                 }
-
                 /// <summary>
                 /// Gets weighting values from anipal's Eye module.
                 /// </summary>
                 /// <param name="shapes">Weighting values obtained from anipal's Eye module.</param>
                 /// <returns>Indicates whether the values received are new.</returns>\
-                public static bool GetEyeWeightings(out Dictionary<EyeShape_v2, float> shapes)
+                /// 
+
+                public static bool GetEyeWeightings(out Dictionary<EyeShape, float> shapes)
                 {
                     UpdateData();
                     return GetEyeWeightings(out shapes, EyeData_);
@@ -226,9 +222,9 @@ namespace ViveSR
                 /// </summary>
                 /// <param name="validity">A type of eye gaze data to test with.</param>
                 /// <param name="gazeIndex">The index of a source of eye gaze data.</param>
-                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData_v2. </param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
                 /// <returns>Indicates whether a source of eye gaze data is found.</returns>
-                public static bool TryGaze(SingleEyeDataValidity validity, out GazeIndex gazeIndex, EyeData_v2 eye_data)
+                public static bool TryGaze(SingleEyeDataValidity validity, out GazeIndex gazeIndex, EyeData eye_data)
                 {
                     bool[] valid = new bool[(int)GazeIndex.COMBINE + 1] { eye_data.verbose_data.left.GetValidity(validity),
                                                                           eye_data.verbose_data.right.GetValidity(validity),
@@ -264,9 +260,9 @@ namespace ViveSR
                 /// <param name="gazeIndex">The index of a source of eye gaze data.</param>
                 /// <param name="origin">The starting point of the ray in local coordinates.</param>
                 /// <param name="direction">Tthe direction of the ray.</param>
-                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData_v2. </param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
                 /// <returns>Indicates whether the eye gaze data received is valid.</returns>
-                public static bool GetGazeRay(GazeIndex gazeIndex, out Vector3 origin, out Vector3 direction, EyeData_v2 eye_data)
+                public static bool GetGazeRay(GazeIndex gazeIndex, out Vector3 origin, out Vector3 direction, EyeData eye_data)
                 {
                     bool valid = false;
                     origin = Vector3.zero;
@@ -300,6 +296,7 @@ namespace ViveSR
                             {
                                 origin = eyesData[(int)gazeIndex].gaze_origin_mm * 0.001f;
                                 direction = eyesData[(int)gazeIndex].gaze_direction_normalized;
+                                origin.x *= -1;
                                 direction.x *= -1;
                             }
                         }
@@ -325,9 +322,9 @@ namespace ViveSR
                 /// </summary>
                 /// <param name="gazeIndex">The index of a source of eye gaze data.</param>
                 /// <param name="ray">The starting point and direction of the ray.</param>
-                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData_v2. </param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
                 /// <returns>Indicates whether the gaze ray data received is valid.</returns>
-                public static bool GetGazeRay(GazeIndex gazeIndex, out Ray ray, EyeData_v2 eye_data)
+                public static bool GetGazeRay(GazeIndex gazeIndex, out Ray ray, EyeData eye_data)
                 {
                     Vector3 origin = Vector3.zero;
                     Vector3 direction = Vector3.forward;
@@ -358,6 +355,143 @@ namespace ViveSR
                 }
 
                 /// <summary>
+                /// Casts a ray against all colliders when enable eye callback function.
+                /// </summary>
+                /// <param name="index">A source of eye gaze data.</param>
+                /// <param name="ray">The starting point and direction of the ray.</param>
+                /// <param name="focusInfo">Information about where the ray focused on.</param>
+                /// <param name="radius">The radius of the gaze ray</param>
+                /// <param name="maxDistance">The max length of the ray.</param>
+                /// <param name="focusableLayer">A layer id that is used to selectively ignore object.</param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
+                /// <returns>Indicates whether the ray hits a collider.</returns>
+                public static bool Focus(GazeIndex index, out Ray ray, out FocusInfo focusInfo, float radius, float maxDistance, int focusableLayer, EyeData eye_data)
+                {
+                    bool valid = GetGazeRay(index, out ray, eye_data);
+                    if (valid)
+                    {
+                        Ray rayGlobal = new Ray(Camera.main.transform.position, Camera.main.transform.TransformDirection(ray.direction));
+                        RaycastHit hit;
+                        if (radius == 0) valid = Physics.Raycast(rayGlobal, out hit, maxDistance, focusableLayer);
+                        else valid = Physics.SphereCast(rayGlobal, radius, out hit, maxDistance, focusableLayer);
+                        focusInfo = new FocusInfo
+                        {
+                            point = hit.point,
+                            normal = hit.normal,
+                            distance = hit.distance,
+                            collider = hit.collider,
+                            rigidbody = hit.rigidbody,
+                            transform = hit.transform
+                        };
+                    }
+                    else
+                    {
+                        focusInfo = new FocusInfo();
+                    }
+                    return valid;
+                }
+
+                /// <summary>
+                /// Casts a ray against all colliders.
+                /// </summary>
+                /// <param name="index">A source of eye gaze data.</param>
+                /// <param name="ray">The starting point and direction of the ray.</param>
+                /// <param name="focusInfo">Information about where the ray focused on.</param>
+                /// <param name="radius">The radius of the gaze ray</param>
+                /// <param name="maxDistance">The max length of the ray.</param>
+                /// <param name="focusableLayer">A layer id that is used to selectively ignore object.</param>
+                /// <returns>Indicates whether the ray hits a collider.</returns>
+                public static bool Focus(GazeIndex index, out Ray ray, out FocusInfo focusInfo, float radius, float maxDistance, int focusableLayer)
+                {
+                    UpdateData();
+                    return Focus(index, out ray, out focusInfo, radius, maxDistance, focusableLayer, EyeData_);
+                }
+
+                /// <summary>
+                /// Casts a ray against all colliders.
+                /// </summary>
+                /// <param name="index">A source of eye gaze data.</param>
+                /// <param name="ray">The starting point and direction of the ray.</param>
+                /// <param name="focusInfo">Information about where the ray focused on.</param>
+                /// <param name="radius">The radius of the gaze ray</param>
+                /// <param name="maxDistance">The max length of the ray.</param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
+                /// <returns>Indicates whether the ray hits a collider.</returns>
+                public static bool Focus(GazeIndex index, out Ray ray, out FocusInfo focusInfo, float radius, float maxDistance, EyeData eye_data)
+                {
+                    return Focus(index, out ray, out focusInfo, radius, maxDistance, -1, eye_data);
+                }
+
+                /// <summary>
+                /// Casts a ray against all colliders.
+                /// </summary>
+                /// <param name="index">A source of eye gaze data.</param>
+                /// <param name="ray">The starting point and direction of the ray.</param>
+                /// <param name="focusInfo">Information about where the ray focused on.</param>
+                /// <param name="radius">The radius of the gaze ray</param>
+                /// <param name="maxDistance">The max length of the ray.</param>
+                /// <returns>Indicates whether the ray hits a collider.</returns>
+                public static bool Focus(GazeIndex index, out Ray ray, out FocusInfo focusInfo, float radius, float maxDistance)
+                {
+                    UpdateData();
+                    return Focus(index, out ray, out focusInfo, radius, maxDistance, EyeData_);
+                }
+
+                /// <summary>
+                /// Casts a ray against all colliders when enable eye callback function.
+                /// </summary>
+                /// <param name="index">A source of eye gaze data.</param>
+                /// <param name="ray">The starting point and direction of the ray.</param>
+                /// <param name="focusInfo">Information about where the ray focused on.</param>
+                /// <param name="maxDistance">The max length of the ray.</param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
+                /// <returns>Indicates whether the ray hits a collider.</returns>
+                public static bool Focus(GazeIndex index, out Ray ray, out FocusInfo focusInfo, float maxDistance, EyeData eye_data)
+                {
+                    return Focus(index, out ray, out focusInfo, 0, float.MaxValue, -1, eye_data);
+                }
+
+                /// <summary>
+                /// Casts a ray against all colliders.
+                /// </summary>
+                /// <param name="index">A source of eye gaze data.</param>
+                /// <param name="ray">The starting point and direction of the ray.</param>
+                /// <param name="focusInfo">Information about where the ray focused on.</param>
+                /// <param name="maxDistance">The max length of the ray.</param>
+                /// <returns>Indicates whether the ray hits a collider.</returns>
+                public static bool Focus(GazeIndex index, out Ray ray, out FocusInfo focusInfo, float maxDistance)
+                {
+                    UpdateData();
+                    return Focus(index, out ray, out focusInfo, maxDistance, EyeData_);
+                }
+
+                /// <summary>
+                /// Casts a ray against all colliders when enable eye callback function.
+                /// </summary>
+                /// <param name="index">A source of eye gaze data.</param>
+                /// <param name="ray">The starting point and direction of the ray.</param>
+                /// <param name="focusInfo">Information about where the ray focused on.</param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
+                /// <returns>Indicates whether the ray hits a collider.</returns>
+                public static bool Focus(GazeIndex index, out Ray ray, out FocusInfo focusInfo, EyeData eye_data)
+                {
+                    return Focus(index, out ray, out focusInfo, 0, float.MaxValue, -1, eye_data);
+                }
+
+                /// <summary>
+                /// Casts a ray against all colliders.
+                /// </summary>
+                /// <param name="index">A source of eye gaze data.</param>
+                /// <param name="ray">The starting point and direction of the ray.</param>
+                /// <param name="focusInfo">Information about where the ray focused on.</param>
+                /// <returns>Indicates whether the ray hits a collider.</returns>
+                public static bool Focus(GazeIndex index, out Ray ray, out FocusInfo focusInfo)
+                {
+                    UpdateData();
+                    return Focus(index, out ray, out focusInfo, EyeData_);
+                }
+
+                /// <summary>
                 /// Gets the 2D position of a selected pupil when enable eye callback function.
                 /// </summary>
                 /// <param name="eye">The index of an eye.</param>
@@ -365,9 +499,9 @@ namespace ViveSR
                 /// Position (0, 0) indicates that the pupil is looking forward;
                 /// position (1, 1) up-rightward; and
                 /// position (-1, -1) left-downward.</param>
-                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData_v2. </param>
+                /// <param name="eye_data">ViveSR.anipal.Eye.EyeData. </param>
                 /// <returns></returns>
-                public static bool GetPupilPosition(EyeIndex eye, out Vector2 postion, EyeData_v2 eye_data)
+                public static bool GetPupilPosition(EyeIndex eye, out Vector2 postion, EyeData eye_data)
                 {
                     bool valid = false;
                     if (SRanipal_Eye_Framework.Status == SRanipal_Eye_Framework.FrameworkStatus.WORKING)

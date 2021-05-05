@@ -5,12 +5,12 @@ using MelonLoader;
 using VRC.Core;
 using VRC.SDKBase;
 
-namespace EyeTrack
+namespace VRCFaceTracking
 {
-    public class Hooking
+    public static class Hooking
     {
-        private static AvatarInstantiatedDelegate onAvatarInstantiatedDelegate;
-        private static OnAvatarSwitchDelegate avatarSwitch;
+        private static AvatarInstantiatedDelegate _onAvatarInstantiatedDelegate;
+        private static OnAvatarSwitchDelegate _avatarSwitch;
 
 
         public static unsafe void SetupHooking()
@@ -21,24 +21,24 @@ namespace EyeTrack
                     .GetField(
                         "NativeMethodInfoPtr_Invoke_Public_Virtual_New_Void_GameObject_VRC_AvatarDescriptor_Boolean_0",
                         BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
-                Imports.Hook(intPtr,
+                MelonUtils.NativeHookAttach(intPtr,
                     new Action<IntPtr, IntPtr, IntPtr, bool>(OnAvatarInstantiated).Method.MethodHandle
                         .GetFunctionPointer());
-                onAvatarInstantiatedDelegate =
+                _onAvatarInstantiatedDelegate =
                     Marshal.GetDelegateForFunctionPointer<AvatarInstantiatedDelegate>(*(IntPtr*) (void*) intPtr);
 
                 intPtr = (IntPtr) typeof(VRCAvatarManager)
                     .GetField(
                         "NativeMethodInfoPtr_Method_Public_Boolean_ApiAvatar_String_Single_MulticastDelegateNPublicSealedVoGaVRBoUnique_0",
                         BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
-                Imports.Hook(intPtr,
+                MelonUtils.NativeHookAttach(intPtr,
                     new Action<IntPtr, IntPtr, string, float, IntPtr>(OnAvatarSwitch).Method.MethodHandle
                         .GetFunctionPointer());
-                avatarSwitch = Marshal.GetDelegateForFunctionPointer<OnAvatarSwitchDelegate>(*(IntPtr*) (void*) intPtr);
+                _avatarSwitch = Marshal.GetDelegateForFunctionPointer<OnAvatarSwitchDelegate>(*(IntPtr*) (void*) intPtr);
             }
             catch (Exception ex)
             {
-                MelonLogger.Log("Patch Failed " + ex);
+                MelonLogger.Msg("Patch Failed " + ex);
             }
         }
 
@@ -52,21 +52,21 @@ namespace EyeTrack
                     if (VRCPlayer.field_Internal_Static_VRCPlayer_0?.prop_ApiAvatar_0?.Pointer != IntPtr.Zero &&
                         avatar.Pointer != IntPtr.Zero && avatar.Pointer ==
                         VRCPlayer.field_Internal_Static_VRCPlayer_0?.prop_ApiAvatar_0?.Pointer)
-                        MainMod.eyeTrackParams = MainMod.EmptyList();
+                        MainMod.ZeroParams();
                 }
             }
             catch (Exception e)
             {
-                MelonLogger.LogError("Error on Avatar Switch: " + e);
+                MelonLogger.Error("Error on Avatar Switch: " + e);
             }
 
-            avatarSwitch(@this, test1, string1, float1, ptr1);
+            _avatarSwitch(@this, test1, string1, float1, ptr1);
         }
 
         private static void OnAvatarInstantiated(IntPtr @this, IntPtr avatarPtr, IntPtr avatarDescriptorPtr,
             bool loaded)
         {
-            onAvatarInstantiatedDelegate(@this, avatarPtr, avatarDescriptorPtr, true);
+            _onAvatarInstantiatedDelegate(@this, avatarPtr, avatarDescriptorPtr, true);
             try
             {
                 var avatarDescriptor = new VRC_AvatarDescriptor(avatarDescriptorPtr);
@@ -74,11 +74,12 @@ namespace EyeTrack
                         ?.prop_VRCAvatarDescriptor_0 !=
                     null && avatarDescriptor == VRCPlayer.field_Internal_Static_VRCPlayer_0.prop_VRCAvatarManager_0
                         .prop_VRCAvatarDescriptor_0)
-                    MainMod.ScanForParamEnums();
+
+                    MainMod.ResetParams();
             }
             catch (Exception e)
             {
-                MelonLogger.LogError(e.ToString());
+                MelonLogger.Error(e.ToString());
             }
         }
 
